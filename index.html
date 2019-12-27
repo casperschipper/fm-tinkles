@@ -1,0 +1,234 @@
+ <!DOCTYPE html>
+
+<meta charset="UTF-8">
+
+ <html lang="en">
+ <head>
+ <meta http-equiv="content-type" content="text/html; charset=utf-8">
+ <title>
+ 	Happy 2020 !
+</title>
+ </head>
+ <body>
+ <p>
+Make some noise!</p>
+<button onClick="ping(ctx,440,0.1,0.1);"> ping ! </button>
+<button onClick="fmPing(440,1.5,2.0,0.1,4.0);"> fm ping ! </button>
+<button id="start-button"> start music </button>
+<button id="stop-button"> stop ! </button>
+
+<script type="text/javascript" src="web-audio-scheduler.min.js"> </script>
+
+<script>
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AudioContext();
+
+  const sched = new WebAudioScheduler({ context: ctx });
+
+  const beat = 60.0 / 100 / 4.0;
+
+  const score = tunes();
+
+  const f1 = 1.0 / 33;
+  const f2 = 1.0 / 17;
+  const f3 = 1.0 / 61;
+  const f4 = 1.0 / 70;
+  const f5 = 1.0 / 91;
+  const f6 = 1.0 / 55;
+
+    function christmas(e) {
+    	const now = e.playbackTime;
+    	
+    	sched.insert(now , fmPing, {
+	    frequency: score.next().value
+	    , amp : ampGen(f1,now)
+	    , ratio : ratioGen(f2,now)
+	    , index : indexGen(f3,now)
+	    , duration : durationGen(f4,now)
+	});
+	
+    	sched.insert(now + (beat * 1.1), fmPing, {
+	    frequency: score.next().value
+	    , amp : ampGen(f2,now)
+	    , ratio : ratioGen(f3,now)
+	    , index : indexGen(f4,now)
+	    , duration : durationGen(f5,now)
+	});
+	
+        sched.insert(now + (beat * 2), fmPing, {
+	    frequency: score.next().value
+	    , amp : ampGen(f3,now)
+	    , ratio : ratioGen(f4,now)
+	    , index : indexGen(f5,now)
+	    , duration : durationGen(f6,now)
+	});
+
+	sched.insert(now + (beat * 3), fmPing, {
+	    frequency: score.next().value
+	    , amp : ampGen(f4,now)
+	    , ratio : ratioGen(f5,now)
+	    , index : indexGen(f6,now)
+	    , duration : durationGen(f1,now)
+	});
+
+	sched.insert(now + (beat * 4.1), fmPing, {
+	    frequency: score.next().value
+	    , amp : ampGen(f5,now)
+	    , ratio : ratioGen(f6,now)
+	    , index : indexGen(f1,now)
+	    , duration : durationGen(f2,now)
+	});
+
+	sched.insert(now + (beat * 5), fmPing, {
+	    frequency: score.next().value
+	    , amp : ampGen(f6,now)
+	    , ratio : ratioGen(f1,now)
+	    , index : indexGen(f2,now)
+	    , duration : durationGen(f3,now)
+	});
+
+    	sched.insert(now + (beat * 6), christmas);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+	  if (document.visibilityState === "visible") {
+	    sched.aheadTime = 0.1;
+	  } else {
+	    sched.aheadTime = 1.0;
+	    sched.process();
+	  }
+	});
+
+	document.getElementById("start-button").addEventListener("click", () => {
+  		sched.start(christmas);  
+	});
+
+	document.getElementById("stop-button").addEventListener("click", () => {
+   	  sched.stop(true);
+	});
+
+  function delayLine(input,duration,time) {
+    let delay = ctx.createDelay(5.0);
+    let fb = ctx.createGain();
+    fb.gain(0.75);
+    fb.connect(delay);
+    input.connect(delay);
+    delay.delayTime.valueAtTime(duration,time);
+    return fb;
+  }
+
+  function fmPing(e) {
+      
+      let args = e.args;
+
+      console.log(args.amp);
+      
+      let now = e.playbackTime;
+      let then = now + args.duration;
+
+      let modFreq = args.frequency * args.ratio;
+      let modAmount = modFreq * args.index;
+
+      // definition
+      let oscil = ctx.createOscillator();
+      let gainNode = ctx.createGain();
+
+      let mod = ctx.createOscillator();
+      let modGain = ctx.createGain();
+      
+      // set mod values
+      mod.frequency.setValueAtTime(modFreq,now);
+      modGain.gain.setValueAtTime(modAmount,now);
+
+
+      // values
+      oscil.frequency.setValueAtTime(args.frequency,now);
+      gainNode.gain.setValueAtTime(args.amp,now);
+      gainNode.gain.exponentialRampToValueAtTime(1e-6,then);
+      //gainNode.gain.setValueAtTime(0.0,then);
+
+      // connect
+      mod.connect(modGain);
+      modGain.connect(oscil.detune);
+
+      oscil.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      // start
+      oscil.start(now);
+      mod.start(now);
+
+      sched.nextTick(then, function() {
+	  oscil.disconnect();
+	  mod.disconnect();
+	  gainNode.disconnect();
+	  mod.disconnect();
+      });
+   }
+
+  function makePing(freq,amp,ratio,index,duration) {
+      return { 
+	  frequency : freq
+	  , amp : amp
+	  , ratio : ratio
+	  , index : index
+	  , duration : duration 
+      };
+  }
+
+  function makeStandardPing(freq) {
+      return makePing(freq,0.01,Math.random() * 4,1.5,Math.random()*10);
+  }
+
+  function mtof(m) {
+      return 440 * Math.pow(2,((m-69)/12));
+  }
+
+  function ch(lst) {
+      return lst[Math.random()*lst.length()]
+  }
+
+  function* tunes() {
+      let score = [600,300,200,400,500,100];
+      let index = 0;
+      while(true) {
+    	  if (index == score.length) {
+    	      index = 0;
+    	  }
+    	  yield score[index++] * 2.0;
+      }
+  }
+
+  function ac2dc(input) {
+      return (input + 1.0) * 0.5;
+  }
+
+  function woble(freq, time) {
+      return ac2dc( Math.sin (freq * 3.1415926535 * 2 * time) );
+  }
+
+  function ampGen(freq,time) {
+      let tryAmp = woble(freq,time);
+      if (tryAmp < 0.7) {
+	  return 0.01;
+      } else {
+	  return tryAmp * 0.1;
+      }
+  }
+
+  function ratioGen(freq, time) {
+      return 1.0 + woble(freq,time) * 3;
+  }
+
+  function indexGen(freq,time) {
+      return 1.0 + woble(freq,time) * 1;
+  }
+
+  function durationGen(freq,time) {
+      return 1.0 / mtof ( ( woble(freq,time) * 60 ) - 60 )
+  }
+
+</script>
+ </body>
+ </html>
+ 
