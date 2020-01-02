@@ -7,226 +7,357 @@
  <meta http-equiv="content-type" content="text/html; charset=utf-8">
  <title>
  	Happy 2020 !
-</title>
+ </title>
+ <style>
+   svg {
+       width:100%;
+       height:100%;
+       position:fixed;
+       top: 0;
+       left: 0;
+       z-index: -1;
+   }
+
+   button {
+       z-index: 0;
+   }
+   </style>
+
+   
  </head>
  <body>
  <p>
 Make some noise!</p>
-<button onClick="ping(ctx,440,0.1,0.1);"> ping ! </button>
-<button onClick="fmPing(440,1.5,2.0,0.1,4.0);"> fm ping ! </button>
-<button id="start-button"> start music </button>
-<button id="stop-button"> stop ! </button>
+<!-- <button onClick="ping(ctx,440,0.1,0.1);"> ping ! </button>
+<button onClick="fmPing(440,1.5,2.0,0.1,4.0);"> fm ping ! </button> -->
+<button id="start-button"> start sound </button>
+<button id="stop-button"> stop </button>
 
-<script type="text/javascript" src="web-audio-scheduler.min.js"> </script>
+<script type="text/javascript" src="lib/web-audio-scheduler.min.js"> </script>
+<script type="text/javascript" src="lib/elm-canvas.js"> </script>
+<script type="text/javascript" src="elm.js"> </script>
+<script type="text/javascript" src="lib/jquery.min.js"> </script>
+</script>
+
+<div id="elm">
+</div>
 
 <script>
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  const ctx = new AudioContext();
+  const app = Elm.Main.init({
+      node : document.getElementById('elm'),
+      flags : { width : $(window).width()
+	      , height : $(window).height() } });
+  
+ const AudioContext = window.AudioContext || window.webkitAudioContext;
+ const ctx = new AudioContext();
 
-  const sched = new WebAudioScheduler({ context: ctx });
+ const sched = new WebAudioScheduler({
+    context: ctx
+ });
 
-  const beat = 60.0 / 100 / 4.0;
+const beat = 60.0 / 100 / 4.0;
 
-  const score = tunes();
+const score = tunes();
 
   const f1 = 1.0 / 33;
-  const f2 = 1.0 / 17;
-  const f3 = 1.0 / 61;
-  const f4 = 1.0 / 70;
-  const f5 = 1.0 / 91;
-  const f6 = 1.0 / 55;
+ const f2 = 1.0 / 17;
+const f3 = 1.0 / 61;
+const f4 = 1.0 / 70;
+const f5 = 1.0 / 91;
+const f6 = 1.0 / 55;
 
-    function christmas(e) {
-    	const now = e.playbackTime;
-    	
-    	sched.insert(now , fmPing, {
-	    frequency: score.next().value
-	    , amp : ampGen(f1,now)
-	    , ratio : ratioGen(f2,now)
-	    , index : indexGen(f3,now)
-	    , duration : durationGen(f4,now)
-	});
-	
-    	sched.insert(now + (beat * 1.1), fmPing, {
-	    frequency: score.next().value
-	    , amp : ampGen(f2,now)
-	    , ratio : ratioGen(f3,now)
-	    , index : indexGen(f4,now)
-	    , duration : durationGen(f5,now)
-	});
-	
-        sched.insert(now + (beat * 2), fmPing, {
-	    frequency: score.next().value
-	    , amp : ampGen(f3,now)
-	    , ratio : ratioGen(f4,now)
-	    , index : indexGen(f5,now)
-	    , duration : durationGen(f6,now)
-	});
 
-	sched.insert(now + (beat * 3), fmPing, {
-	    frequency: score.next().value
-	    , amp : ampGen(f4,now)
-	    , ratio : ratioGen(f5,now)
-	    , index : indexGen(f6,now)
-	    , duration : durationGen(f1,now)
+// const f1 = 33;
+// const f2 = 17;
+// const f3 = 61;
+// const f4 = 70;
+// const f5 = 91;
+// const f6 = 55;
+
+
+let bus1 = null;
+let effect = null;
+
+function calcBeat(tempo) {
+    return 60.0 / tempo / 4.0;
+}
+
+function makeChristmasWithTempo(tempo) {
+
+    let localBeat = calcBeat(tempo);
+
+    let christmas = function christmas(e) {
+        const now = e.playbackTime;
+
+	app.ports.sendFrame.send({
+	     f1 : woble(f1,now)
+	    , f2 : woble(f2,now)
+	    , f3 : woble(f3,now)
+	    , f4 : woble(f4,now)
+	    , f5 : woble(f5,now)
 	});
 
-	sched.insert(now + (beat * 4.1), fmPing, {
-	    frequency: score.next().value
-	    , amp : ampGen(f5,now)
-	    , ratio : ratioGen(f6,now)
-	    , index : indexGen(f1,now)
-	    , duration : durationGen(f2,now)
-	});
+        sched.insert(now, fmPing, {
+            frequency: score.next().value,
+            amp: ampGen(f1, now),
+            ratio: ratioGen(f2, now),
+            index: indexGen(f3, now),
+            duration: durationGen(f4, now)
+        });
 
-	sched.insert(now + (beat * 5), fmPing, {
-	    frequency: score.next().value
-	    , amp : ampGen(f6,now)
-	    , ratio : ratioGen(f1,now)
-	    , index : indexGen(f2,now)
-	    , duration : durationGen(f3,now)
-	});
+        sched.insert(now + (localBeat * 1.05), fmPing, {
+            frequency: score.next().value,
+            amp: ampGen(f2, now),
+            ratio: ratioGen(f3, now),
+            index: indexGen(f4, now),
+            duration: durationGen(f5, now)
+        });
 
-    	sched.insert(now + (beat * 6), christmas);
+        sched.insert(now + (localBeat * 2.05), fmPing, {
+            frequency: score.next().value,
+            amp: ampGen(f3, now),
+            ratio: ratioGen(f4, now),
+            index: indexGen(f5, now),
+            duration: durationGen(f6, now)
+        });
+
+        sched.insert(now + (localBeat * 3.0), fmPing, {
+            frequency: score.next().value,
+            amp: ampGen(f4, now),
+            ratio: ratioGen(f5, now),
+            index: indexGen(f6, now),
+            duration: durationGen(f1, now)
+        });
+
+        sched.insert(now + (localBeat * 4.05), fmPing, {
+            frequency: score.next().value,
+            amp: ampGen(f5, now),
+            ratio: ratioGen(f6, now),
+            index: indexGen(f1, now),
+            duration: durationGen(f2, now)
+        });
+
+        sched.insert(now + (localBeat * 5.05), fmPing, {
+            frequency: score.next().value,
+            amp: ampGen(f6, now),
+            ratio: ratioGen(f1, now),
+            index: indexGen(f2, now),
+            duration: durationGen(f3, now)
+        });
+
+        sched.insert(now + (localBeat * 6), christmas);
+    };
+
+    return christmas;
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        sched.aheadTime = 0.1;
+    } else {
+        sched.aheadTime = 1.0;
+        sched.process();
     }
+});
 
-    document.addEventListener("visibilitychange", () => {
-	  if (document.visibilityState === "visible") {
-	    sched.aheadTime = 0.1;
-	  } else {
-	    sched.aheadTime = 1.0;
-	    sched.process();
-	  }
-	});
+sched.on("start", function() {
+    bus1 = ctx.createGain();
 
-	document.getElementById("start-button").addEventListener("click", () => {
-  		sched.start(christmas);  
-	});
+    //effect = createDelayLine(bus1,1.5*beat,ctx.currentTime);
+    //effect.output.connect(ctx.destination)
+    bus1.connect(ctx.destination);
+});
 
-	document.getElementById("stop-button").addEventListener("click", () => {
-   	  sched.stop(true);
-	});
+sched.on("stop", function() {
+    bus1.disconnect();
+    //effect.disconnect();
+    //effect = null;
 
-  function delayLine(input,duration,time) {
+});
+
+document.getElementById("start-button").addEventListener("click", () => {
+    const tempos = [100];
+    for (var i = 0;i<tempos.length;i++) {
+      let fun = makeChristmasWithTempo(tempos[i]);
+      sched.start( fun );
+    }
+});
+
+document.getElementById("stop-button").addEventListener("click", () => {
+    sched.stop(true);
+});
+
+function createDelayLine(input, duration, time) {
     let delay = ctx.createDelay(5.0);
     let fb = ctx.createGain();
-    fb.gain(0.75);
+
+    fb.gain.setValueAtTime(0.9, time);
+
+    delay.connect(fb);
     fb.connect(delay);
+
     input.connect(delay);
-    delay.delayTime.valueAtTime(duration,time);
-    return fb;
+
+    delay.delayTime.setValueAtTime(duration, time);
+    let disconnect = function() {
+        fb.disconnect();
+        delay.disconnect();
+    }
+    return {
+        output: delay,
+        disconnect: disconnect
+    };
+}
+
+function fmPing(e) {
+
+    let args = e.args;
+
+    //console.log(args.amp);
+
+    let now = e.playbackTime;
+    let then = now + args.duration;
+
+    let modFreq = args.frequency * args.ratio;
+    let modAmount = modFreq * args.index;
+
+
+
+    // definition
+    let oscil = ctx.createOscillator();
+    let gainNode = ctx.createGain();
+
+    let mod = ctx.createOscillator();
+    let modGain = ctx.createGain();
+    let panner = ctx.createPanner();
+
+    let panX = (Math.random() * 2) - 1.0;
+
+    // set mod values
+    mod.frequency.setValueAtTime(modFreq, now);
+    modGain.gain.setValueAtTime(modAmount, now);
+
+
+    // values
+    oscil.frequency.setValueAtTime(args.frequency, now);
+    gainNode.gain.setValueAtTime(args.amp, now);
+    gainNode.gain.exponentialRampToValueAtTime(1e-6, then);
+    panner.setPosition(panX,0,0);
+    //gainNode.gain.setValueAtTime(0.0,then);
+
+    // connect
+    mod.connect(modGain);
+    modGain.connect(oscil.detune);
+
+    oscil.connect(gainNode);
+    gainNode.connect(panner);
+    panner.connect(ctx.destination);
+
+    // start
+    oscil.start(now);
+    mod.start(now);
+
+    sched.nextTick(then, function() {
+        oscil.disconnect();
+        mod.disconnect();
+        gainNode.disconnect();
+        mod.disconnect();
+        panner.disconnect();
+
+	oscil = null;
+	mod = null;
+	gainNode = null;
+	mod = null;
+	panner = null;
+    });
+}
+
+function makePing(freq, amp, ratio, index, duration) {
+    return {
+        frequency: freq,
+        amp: amp,
+        ratio: ratio,
+        index: index,
+        duration: duration
+    };
+}
+
+function makeStandardPing(freq) {
+    return makePing(freq, 0.01, Math.random() * 4, 1.5, Math.random() * 10);
+}
+
+function mtof(m) {
+    return 440 * Math.pow(2, ((m - 69) / 12));
+}
+  
+  function durToMidi(dur) {
+      let freq = 1.0 / dur;
+      let ratio = freq / 440;
+      return 69 + (12 * Math.log2(ratio));
   }
 
-  function fmPing(e) {
-      
-      let args = e.args;
+function ch(lst) {
+    return lst[Math.random() * lst.length()]
+}
 
-      console.log(args.amp);
-      
-      let now = e.playbackTime;
-      let then = now + args.duration;
+function* tunes() {
+    let score = [100,400,300,200,600,500,150,250];
+    // let score = [600];
+    let index = 0;
+    while (true) {
+        if (index == score.length) {
+            index = 0;
+        }
+        yield score[index++] * 1.0;
+    }
+}
 
-      let modFreq = args.frequency * args.ratio;
-      let modAmount = modFreq * args.index;
+function ac2dc(input) {
+    return (input + 1.0) * 0.5;
+}
 
-      // definition
-      let oscil = ctx.createOscillator();
-      let gainNode = ctx.createGain();
+function woble(freq, time) {
+    return ac2dc(Math.sin(freq * 3.1415926535 * 2 * time));
+}
 
-      let mod = ctx.createOscillator();
-      let modGain = ctx.createGain();
-      
-      // set mod values
-      mod.frequency.setValueAtTime(modFreq,now);
-      modGain.gain.setValueAtTime(modAmount,now);
-
-
-      // values
-      oscil.frequency.setValueAtTime(args.frequency,now);
-      gainNode.gain.setValueAtTime(args.amp,now);
-      gainNode.gain.exponentialRampToValueAtTime(1e-6,then);
-      //gainNode.gain.setValueAtTime(0.0,then);
-
-      // connect
-      mod.connect(modGain);
-      modGain.connect(oscil.detune);
-
-      oscil.connect(gainNode);
-      gainNode.connect(ctx.destination);
-
-      // start
-      oscil.start(now);
-      mod.start(now);
-
-      sched.nextTick(then, function() {
-	  oscil.disconnect();
-	  mod.disconnect();
-	  gainNode.disconnect();
-	  mod.disconnect();
-      });
-   }
-
-  function makePing(freq,amp,ratio,index,duration) {
-      return { 
-	  frequency : freq
-	  , amp : amp
-	  , ratio : ratio
-	  , index : index
-	  , duration : duration 
-      };
+function linlin(input,minIn,maxIn,minOut,maxOut) {
+  if (input <= minIn) {
+    return minOut;
   }
-
-  function makeStandardPing(freq) {
-      return makePing(freq,0.01,Math.random() * 4,1.5,Math.random()*10);
+  if (input >= maxIn) {
+    return maxOut;
   }
+  return (((input - Math.min(minIn,maxIn)) / Math.abs(minIn-maxIn)) * Math.abs(minOut-maxOut)) + Math.min(minOut,maxOut);
+}
 
-  function mtof(m) {
-      return 440 * Math.pow(2,((m-69)/12));
-  }
+function ampGen(freq, time) {
+    let tryAmp = woble(freq, time);
+    if (tryAmp < 0.7) {
+        return 0.01;
+    } else {
+        return tryAmp * 0.1;
+    }
+}
 
-  function ch(lst) {
-      return lst[Math.random()*lst.length()]
-  }
+function ratioGen(freq, time) {
+    return 1.0 + woble(freq, time) * 3.0;
+}
 
-  function* tunes() {
-      let score = [600,300,200,400,500,100];
-      let index = 0;
-      while(true) {
-    	  if (index == score.length) {
-    	      index = 0;
-    	  }
-    	  yield score[index++] * 2.0;
-      }
-  }
+function indexGen(freq, time) {
+    return 0.5 + woble(freq, time) * 1.1;
+}
 
-  function ac2dc(input) {
-      return (input + 1.0) * 0.5;
-  }
+function durationGen(freq, time) {
+    return 1.0 / mtof((woble(freq, time) * 48) + durToMidi(0.05))
+}
 
-  function woble(freq, time) {
-      return ac2dc( Math.sin (freq * 3.1415926535 * 2 * time) );
-  }
+function mtor(midi) {
+  return Math.pow( 2, midi/12.0 );
+}
 
-  function ampGen(freq,time) {
-      let tryAmp = woble(freq,time);
-      if (tryAmp < 0.7) {
-	  return 0.01;
-      } else {
-	  return tryAmp * 0.1;
-      }
-  }
-
-  function ratioGen(freq, time) {
-      return 1.0 + woble(freq,time) * 3;
-  }
-
-  function indexGen(freq,time) {
-      return 1.0 + woble(freq,time) * 1;
-  }
-
-  function durationGen(freq,time) {
-      return 1.0 / mtof ( ( woble(freq,time) * 60 ) - 60 )
-  }
+function modFreqGen(freq,time) {
+  return mtor ( (woble(freq,time) * 48) - 24);
+}
 
 </script>
  </body>
